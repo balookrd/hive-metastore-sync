@@ -161,7 +161,7 @@ public abstract class Commands {
                 } else {
                     notFirst = true;
                 }
-                query.append("PARTITION (").append(partition).append(")");
+                query.append("PARTITION (").append(partition.getNameTranslated()).append(")");
                 if (!partition.getLocation().isEmpty()) {
                     query.append(" LOCATION '").append(partition.getLocation()).append("'");
                 }
@@ -201,7 +201,7 @@ public abstract class Commands {
                 } else {
                     notFirst = true;
                 }
-                query.append("PARTITION (").append(partition).append(")");
+                query.append("PARTITION (").append(partition.getNameTranslated()).append(")");
             }
             Commands.executeQuery(hive, query.toString());
         }
@@ -304,19 +304,14 @@ public abstract class Commands {
             List<String> values,
             String customLocation) {
 
-        // 1️⃣ Копируем SD таблицы
         StorageDescriptor sdCopy = table.getSd().deepCopy();
-
-        // 2️⃣ Меняем только location
         sdCopy.setLocation(customLocation);
 
         Partition partition = new Partition();
-
         partition.setDbName(table.getDbName());
         partition.setTableName(table.getTableName());
         partition.setValues(values);
         partition.setSd(sdCopy);
-
         partition.setCreateTime((int) (System.currentTimeMillis() / 1000));
         partition.setLastAccessTime(0);
 

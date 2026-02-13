@@ -25,4 +25,8 @@ public class PartitionInfo {
     public String getLocation() {
         return location;
     }
+
+    public String getNameTranslated() {
+        return name.replaceAll("=", "='").replaceAll("/", "',") + "'";
+    }
 }

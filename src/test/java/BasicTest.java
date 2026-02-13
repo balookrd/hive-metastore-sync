@@ -16,13 +16,14 @@ public class BasicTest extends AbstractTest {
         AbstractSuite.fullCleanup("BEFORE TEST CLEANUP");
         Statement s1 = con1.createStatement();
         s1.execute("create table table1 (col1 int)");
-        s1.execute("create table table2 (col1 int) partitioned by(col2 int)");
-        s1.execute("alter table table2 add partition(col2=1)");
-        s1.execute("alter table table2 add partition(col2=2)");
+        s1.execute("create table table2 (col1 int) partitioned by(col2 date)");
+        s1.execute("alter table table2 add partition(col2='1980-12-24')");
+        s1.execute("alter table table2 add partition(col2='1976-11-24')");
         s1.close();
 
         Statement s2 = con2.createStatement();
-        s2.execute("create table table2 (col1 int) partitioned by(col2 int)");
+        s2.execute("create table table2 (col1 int) partitioned by(col2 date)");
+        s2.execute("alter table table2 add partition(col2='2026-01-01')");
         s2.execute("create table table3 (col1 int)");
         s2.close();
     }
@@ -38,7 +39,7 @@ public class BasicTest extends AbstractTest {
         checkResult(s2, "describe table1", new String[]{"col1"});
         checkResult(s2, "describe table2", new String[]{"col1", "col2", "",
                 "# Partition Information", "# col_name", "col2"});
-        checkResult(s2, "show partitions table2", new String[]{"col2=1", "col2=2"});
+        checkResult(s2, "show partitions table2", new String[]{"col2=1976-11-24", "col2=1980-12-24"});
         s2.close();
     }
 
