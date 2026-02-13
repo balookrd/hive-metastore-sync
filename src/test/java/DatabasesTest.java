@@ -26,7 +26,6 @@ public class DatabasesTest extends AbstractTest {
 
         Statement s2 = con2.createStatement();
         s2.execute("create database db1");
-        s2.execute("create table db1.table1 (col1 int, col2 int)");
         s2.execute("create database db3");
         s2.close();
     }

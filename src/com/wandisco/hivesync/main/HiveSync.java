@@ -81,7 +81,7 @@ public class HiveSync {
                 LOG.info("Create non-existing table: " + srcTable.getName());
                 Commands.createTable(con2, hms2, srcTable);
             } else {
-                LOG.info("Re-create existing table: " + dstTable.getName());
+                LOG.info("Update existing table: " + dstTable.getName());
                 Commands.updatePartitions(con2, hms2, srcTable, dstTable);
             }
         }
