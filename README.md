@@ -43,7 +43,7 @@ To remove created containers use ```destroy```:
 vagrant destroy
 ```
 
-##Running hive-metastore-sync
+## Running hive-metastore-sync
 
 To run hive-metastore-sync from shell:
 
@@ -51,15 +51,15 @@ To run hive-metastore-sync from shell:
 <install-dir>/bin/hivesync [parameters]
 ```
 
-##Configuration
+## Configuration
 Log4j2 configuration is stored in ```<install-dir>/conf/log4j2.xml```
 The default configuration file produces log file ```/tmp/hive-metastore-sync.txt```
 
-##Configuring secure Hive sync
+## Configuring secure Hive sync
 
 To configure secure Hive sync, you must configure cross realm support for Kerberos and Hadoop
 
-####Kerberos & Hadoop
+#### Kerberos & Hadoop
 
 * Create krbtgt principals for the two realms. For example, if you have two realms called SRC.COM and DST.COM, then you
 need to add the following principals: krbtgt/SRC.COM@DST.COM and krbtgt/DST.COM@SRC.COM. Add these two principals at both realms.
@@ -113,7 +113,7 @@ dst.com = DST.COM
 src.com = SRC.COM
 ```
 
-####Check configuration
+#### Check configuration
 * How to check that kerberos has been configured correctly:
 On the destination cluster check that principal from the source cluster could be mapped correctly:
 ```
@@ -125,9 +125,17 @@ $ beeline
 beeline> !connect jdbc:hive2://hiveserver.dst.com:10000/default;principal=hive/dst.com@DST.COM
 beeline> show tables;
 ```
-####Start sync
+#### Start sync
 * Use ```--dry-run``` to generate output.txt with hive commands:
 ```
 <install-dir>/bin/hivesync --dry-run output.txt --dst-url "jdbc:hive2://hiveserver.dst.com:10000/default;principal=hive/hiveserver.dst.com@DST.COM" --src-url "jdbc:hive2://hiveserver.src.com:10000/default;principal=hive/hiveserver.src.com@SRC.COM"
 ```
 * Review generated ```output.txt``` file and run the same command again, but without ```--dry-run``` parameter to start syncing.
+
+#### Запуск локальных баз для отладки
+
+    docker compose -f hive1.yaml up -d
+    docker compose -f hive2.yaml up -d
+
+    docker exec -it hive1-hiveserver-1 beeline -u 'jdbc:hive2://localhost:10000/'
+    docker exec -it hive2-hiveserver-1 beeline -u 'jdbc:hive2://localhost:10000/'

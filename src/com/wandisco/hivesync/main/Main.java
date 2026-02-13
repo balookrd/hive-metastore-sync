@@ -4,7 +4,8 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.ParameterException;
 import com.wandisco.hivesync.hive.Commands;
 
-import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 /**
  *
@@ -33,10 +34,12 @@ public class Main {
         String dryRunFile = p.getDryRunFile();
         Commands.setDryRunFile(dryRunFile);
         if (dryRunFile != null) {
-            (new File(dryRunFile)).delete();
+            Files.deleteIfExists(Paths.get(dryRunFile));
         }
 
-        HiveSync hs = new HiveSync(p.getSrc(), p.getDst(), p.getDatabases());
+        HiveSync hs = new HiveSync(p.getSrcHive(), p.getSrcMeta(),
+                p.getDstHive(), p.getDstMeta(),
+                p.getDatabases());
         hs.execute();
     }
 }

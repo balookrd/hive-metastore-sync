@@ -1,5 +1,6 @@
 package test.java;
 
+import com.wandisco.hivesync.hive.HMSClient;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 
@@ -10,24 +11,33 @@ import java.sql.Statement;
 
 public abstract class AbstractTest {
 
-    protected String url1;
-    protected String url2;
     protected Connection con1;
     protected Connection con2;
+    protected HMSClient hms1;
+    protected HMSClient hms2;
+
+    protected String url1;
+    protected String url2;
+    protected String meta1;
+    protected String meta2;
 
     @BeforeClass
     public void init() {
-        url1 = AbstractSuite.getUrl1();
-        url2 = AbstractSuite.getUrl2();
         con1 = AbstractSuite.getCon1();
         con2 = AbstractSuite.getCon2();
+        hms1 = AbstractSuite.getHms1();
+        hms2 = AbstractSuite.getHms2();
+        url1 = AbstractSuite.getUrl1();
+        url2 = AbstractSuite.getUrl2();
+        meta1 = AbstractSuite.getMeta1();
+        meta2 = AbstractSuite.getMeta2();
     }
 
     protected void checkResult(Statement stm, String query, String[] strings) throws SQLException {
         ResultSet rs = stm.executeQuery(query);
-        for (int i = 0; i < strings.length; i++) {
+        for (String string : strings) {
             Assert.assertTrue(rs.next());
-            Assert.assertEquals(rs.getString(1), strings[i]);
+            Assert.assertEquals(rs.getString(1), string);
         }
         Assert.assertFalse(rs.next(), "unexpected value: '" + rs.getString(1) + "'");
     }

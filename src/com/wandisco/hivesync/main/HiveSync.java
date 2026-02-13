@@ -2,6 +2,7 @@ package com.wandisco.hivesync.main;
 
 import com.wandisco.hivesync.common.Tools;
 import com.wandisco.hivesync.hive.Commands;
+import com.wandisco.hivesync.hive.HMSClient;
 import com.wandisco.hivesync.hive.TableInfo;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -9,6 +10,7 @@ import org.apache.logging.log4j.Logger;
 import java.sql.Connection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  *
@@ -19,13 +21,19 @@ public class HiveSync {
 
     private final Connection con1;
     private final Connection con2;
+    private final HMSClient hms1;
+    private final HMSClient hms2;
     private final List<String> dbWildcards;
 
     private static final Logger LOG = LogManager.getLogger(HiveSync.class);
 
-    public HiveSync(String src, String dst, List<String> databases) throws Exception {
-        con1 = Tools.createNewConnection(src);
-        con2 = Tools.createNewConnection(dst);
+    public HiveSync(String srcHive, String srcMeta,
+                    String dstHive, String dstMeta,
+                    List<String> databases) throws Exception {
+        con1 = Tools.createNewHiveConnection(srcHive);
+        con2 = Tools.createNewHiveConnection(dstHive);
+        hms1 = Tools.createNewMetaConnection(srcMeta);
+        hms2 = Tools.createNewMetaConnection(dstMeta);
         this.dbWildcards = databases;
     }
 
@@ -50,7 +58,7 @@ public class HiveSync {
             if (!dbList2.contains(db)) {
                 createDatabase(con2, db);
             }
-            syncDatabase(db, fs1, fs2);
+            syncDatabase(db);
         }
     }
 
@@ -59,20 +67,22 @@ public class HiveSync {
         Commands.createDatabase(con, db);
     }
 
-    private void syncDatabase(String database, String fs1, String fs2) throws Exception {
+    private void syncDatabase(String database) throws Exception {
         LOG.trace("Collect table information");
 
-        List<TableInfo> srcTables = Commands.getTables(con1, database);
-        List<TableInfo> dstTables = Commands.getTables(con2, database);
+        List<TableInfo> srcTables = Commands.getTables(con1, hms1, database)
+                .stream().filter(t -> !t.isTransactional()).collect(Collectors.toList());
+        List<TableInfo> dstTables = Commands.getTables(con2, hms2, database)
+                .stream().filter(t -> !t.isTransactional()).collect(Collectors.toList());
 
         for (TableInfo srcTable : srcTables) {
             TableInfo dstTable = findTable(dstTables, srcTable.getName());
-            if (dstTable != null) {
-                LOG.info("Re-create existing table: " + dstTable.getName());
-                Commands.recreateTable(con2, srcTable, dstTable, fs1, fs2);
-            } else {
+            if (dstTable == null) {
                 LOG.info("Create non-existing table: " + srcTable.getName());
-                Commands.createTable(con2, srcTable, fs1, fs2);
+                Commands.createTable(con2, hms2, srcTable);
+            } else {
+                LOG.info("Re-create existing table: " + dstTable.getName());
+                Commands.updatePartitions(con2, hms2, srcTable, dstTable);
             }
         }
         for (TableInfo dstTable : dstTables) {
@@ -85,7 +95,7 @@ public class HiveSync {
 
     private TableInfo findTable(List<TableInfo> tables, String tableName) {
         for (TableInfo ti : tables) {
-            if (ti.getName().equals(tableName)) {
+            if (ti.getName().equalsIgnoreCase(tableName)) {
                 return ti;
             }
         }

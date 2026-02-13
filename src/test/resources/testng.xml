@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd" >
 <suite name="Suite" verbose="2">
-	<parameter name="box1_host" value="localhost" />
-	<parameter name="box1_jdbc_port" value="10001" />
-	<parameter name="box2_host" value="localhost" />
-	<parameter name="box2_jdbc_port" value="10002" />
-	<parameter name="hadoop_home" value="/usr/local/hadoop-2.6.0" />
-	<parameter name="hive_home" value="/usr/local/apache-hive-1.2.1-bin" />
-	<test name="Test1">
-		<classes>
-			<class name="test.java.AbstractSuite" />
-			<class name="test.java.CommandsTest" />
-			<class name="test.java.BasicTest" />
-			<class name="test.java.DatabasesTest" />
-		</classes>
-	</test>
+    <parameter name="box1_hive" value="jdbc:hive2://localhost:10001"/>
+    <parameter name="box1_meta" value="thrift://localhost:9001"/>
+    <parameter name="box2_hive" value="jdbc:hive2://localhost:10002"/>
+    <parameter name="box2_meta" value="thrift://localhost:9002"/>
+    <parameter name="hadoop_home" value="/usr/local/hadoop-2.6.0"/>
+    <parameter name="hive_home" value="/usr/local/apache-hive-1.2.1-bin"/>
+    <test name="Test1">
+        <classes>
+            <class name="test.java.AbstractSuite"/>
+            <class name="test.java.CommandsTest"/>
+            <class name="test.java.BasicTest"/>
+            <class name="test.java.DatabasesTest"/>
+        </classes>
+    </test>
 </suite>

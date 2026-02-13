@@ -1,0 +1,34 @@
+name: hive2
+services:
+  postgres:
+    image: postgres:17.2-bookworm
+    environment:
+      POSTGRES_PASSWORD: "example"
+  metastore:
+    image: apache/hive:4.0.1
+    depends_on:
+      - postgres
+    ports:
+      - "9002:9083"
+    environment:
+      SERVICE_NAME: metastore
+      DB_DRIVER: postgres
+      SERVICE_OPTS: >-
+        -Djavax.jdo.option.ConnectionDriverName=org.postgresql.Driver
+        -Djavax.jdo.option.ConnectionURL=jdbc:postgresql://postgres:5432/postgres
+        -Djavax.jdo.option.ConnectionUserName=postgres
+        -Djavax.jdo.option.ConnectionPassword=example
+
+    volumes:
+      - ~/.m2/repository/org/postgresql/postgresql/42.7.5/postgresql-42.7.5.jar:/opt/hive/lib/postgres.jar
+  hiveserver:
+    image: apache/hive:4.0.1
+    depends_on:
+      - metastore
+    ports:
+      - "10002:10000"
+    environment:
+      SERVICE_NAME: hiveserver2
+      IS_RESUME: true
+      SERVICE_OPTS: >-
+        -Dhive.metastore.uris=thrift://metastore:9083

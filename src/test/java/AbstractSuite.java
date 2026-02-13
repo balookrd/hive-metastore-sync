@@ -1,6 +1,7 @@
 package test.java;
 
 import com.wandisco.hivesync.common.Tools;
+import com.wandisco.hivesync.hive.HMSClient;
 import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.Parameters;
@@ -11,21 +12,33 @@ import java.sql.SQLException;
 import java.sql.Statement;
 
 public class AbstractSuite {
+
     private static Connection con1;
     private static Connection con2;
+    private static HMSClient hms1;
+    private static HMSClient hms2;
+
     private static String url1;
     private static String url2;
+    private static String meta1;
+    private static String meta2;
 
-    @Parameters({"box1_host", "box1_jdbc_port", "box2_host", "box2_jdbc_port",
+    @Parameters({"box1_hive", "box1_meta",
+            "box2_hive", "box2_meta",
             "hadoop_home", "hive_home"})
     @BeforeSuite
-    public void setupSuite(String host1, String port1, String host2,
-                           String port2, String hadoopHome, String hiveHome)
+    public void setupSuite(String hive1, String meta1,
+                           String hive2, String meta2,
+                           String hadoopHome, String hiveHome)
             throws Exception {
-        url1 = "jdbc:hive2://" + host1 + ":" + port1;
-        url2 = "jdbc:hive2://" + host2 + ":" + port2;
-        con1 = Tools.createNewConnection(url1);
-        con2 = Tools.createNewConnection(url2);
+        con1 = Tools.createNewHiveConnection(hive1);
+        con2 = Tools.createNewHiveConnection(hive2);
+        hms1 = Tools.createNewMetaConnection(meta1);
+        hms2 = Tools.createNewMetaConnection(meta2);
+        url1 = hive1;
+        url2 = hive2;
+        AbstractSuite.meta1 = meta1;
+        AbstractSuite.meta2 = meta2;
         fullCleanup("BEFORE SUITE CLEANUP");
     }
 
@@ -63,6 +76,14 @@ public class AbstractSuite {
         return con2;
     }
 
+    public static HMSClient getHms1() {
+        return hms1;
+    }
+
+    public static HMSClient getHms2() {
+        return hms2;
+    }
+
     @AfterSuite
     public void cleanupSuite() throws SQLException {
         fullCleanup("AFTER SUITE CLEANUP");
@@ -84,5 +105,13 @@ public class AbstractSuite {
 
     public static String getUrl2() {
         return url2;
+    }
+
+    public static String getMeta1() {
+        return meta1;
+    }
+
+    public static String getMeta2() {
+        return meta2;
     }
 }

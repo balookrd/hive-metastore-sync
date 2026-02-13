@@ -7,7 +7,7 @@ import org.testng.annotations.Test;
 
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 public class BasicTest extends AbstractTest {
@@ -16,7 +16,8 @@ public class BasicTest extends AbstractTest {
         AbstractSuite.fullCleanup("BEFORE TEST CLEANUP");
         Statement s1 = con1.createStatement();
         s1.execute("create table table1 (col1 int)");
-        s1.execute("create table table2 (col1 int)");
+        s1.execute("create table table2 (col1 int) partitioned by(col2 int)");
+        s1.execute("alter table table2 add partition(col2=1)");
         s1.close();
 
         Statement s2 = con2.createStatement();
@@ -27,13 +28,15 @@ public class BasicTest extends AbstractTest {
 
     @Test
     public void f() throws Exception {
-        List<String> dbs = Arrays.asList("default");
-        HiveSync hs = new HiveSync(url1, url2, dbs);
+        List<String> dbs = Collections.singletonList("default");
+        HiveSync hs = new HiveSync(url1, meta1, url2, meta2, dbs);
         hs.execute();
 
         Statement s2 = con2.createStatement();
         checkResult(s2, "show tables", new String[]{"table1", "table2"});
         checkResult(s2, "describe table1", new String[]{"col1"});
+        checkResult(s2, "describe table2", new String[]{"col1", "col2", "",
+                "# Partition Information", "# col_name", "col2"});
         s2.close();
     }
 

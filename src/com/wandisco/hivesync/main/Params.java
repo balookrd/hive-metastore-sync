@@ -17,29 +17,27 @@ public class Params {
     @Parameter(names = {"-?", "--help"}, description = "Show help", help = true)
     private Boolean help;
 
-    @Parameter(names = {"-s", "--src-url"},
-            description = "Connection string ('hiveserver' and 'hiveserver2' can be used as default connection string for the corresponding services)",
+    @Parameter(names = {"--src-hive"},
+            description = "JDBC connection string ('hiveserver' and 'hiveserver2' can be used as default connection string for the corresponding services)",
             required = true)
-    private String src;
+    private String srcHive;
 
-    @Parameter(names = {"-u", "--src-user"}, description = "User")
-    private String srcUser;
-
-    @Parameter(names = {"-p", "--src-password"}, description = "Password")
-    private String srcPass;
-
-    @Parameter(names = {"-d", "--dst-url"},
-            description = "Connection string ('hiveserver' and 'hiveserver2' can be used as default connection string for the corresponding services)",
+    @Parameter(names = {"--src-meta"},
+            description = "Thrift connection string to metastore thrift://host:port",
             required = true)
-    private String dst;
+    private String srcMeta;
 
-    @Parameter(names = {"-v", "--dst-user"}, description = "User")
-    private String dstUser;
+    @Parameter(names = {"--dst-hive"},
+            description = "JDBC connection string ('hiveserver' and 'hiveserver2' can be used as default connection string for the corresponding services)",
+            required = true)
+    private String dstHive;
 
-    @Parameter(names = {"-q", "--dst-password"}, description = "Password")
-    private String dstPass;
+    @Parameter(names = {"--dst-meta"},
+            description = "Thrift connection string to metastore thrift://host:port",
+            required = true)
+    private String dstMeta;
 
-    @Parameter(names = {"-b", "--database"},
+    @Parameter(names = {"--database"},
             description = "Database(s), comma-separated list with wildcards")
     private List<String> databases = new ArrayList<>(Arrays.asList("default"));
 
@@ -51,28 +49,20 @@ public class Params {
         return help;
     }
 
-    public String getSrc() {
-        return src;
+    public String getSrcHive() {
+        return srcHive;
     }
 
-    public String getSrcUser() {
-        return srcUser;
+    public String getSrcMeta() {
+        return srcMeta;
     }
 
-    public String getSrcPass() {
-        return srcPass;
+    public String getDstHive() {
+        return dstHive;
     }
 
-    public String getDst() {
-        return dst;
-    }
-
-    public String getDstUser() {
-        return dstUser;
-    }
-
-    public String getDstPass() {
-        return dstPass;
+    public String getDstMeta() {
+        return dstMeta;
     }
 
     public List<String> getDatabases() {

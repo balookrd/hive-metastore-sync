@@ -1,19 +1,35 @@
 package com.wandisco.hivesync.hive;
 
+import com.wandisco.hivesync.common.Tools;
+import org.apache.hadoop.hive.metastore.api.Table;
+
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class TableInfo {
 
+    private final Table table;
     private final String name;
     private final String createCommand;
     private final boolean isManaged;
-    private final List<String> partitions;
+    private final boolean isTransactional;
+    private final List<PartitionInfo> partitions;
 
-    public TableInfo(String name, String createCommand, List<String> partitions, boolean isManaged) {
+    public TableInfo(Table table, String name, List<String> createCommand, List<PartitionInfo> partitions, boolean isManaged) {
+        this.table = table;
         this.name = name;
-        this.createCommand = createCommand;
+        this.createCommand = Tools.join(createCommand.stream()
+                .filter(s -> !s.contains("transactional") && !s.contains("external.table.purge"))
+                .map(s -> (s.startsWith("CREATE TABLE ") ? "CREATE EXTERNAL TABLE " + s.substring(13) : s))
+                .collect(Collectors.toList()));
         this.partitions = partitions;
         this.isManaged = isManaged;
+        //table.getParameters().get("transactional");
+        this.isTransactional = createCommand.stream().anyMatch(s -> s.contains("'transactional'='true'"));
+    }
+
+    public Table getTable() {
+        return table;
     }
 
     public String getName() {
@@ -28,12 +44,16 @@ public class TableInfo {
         return isManaged;
     }
 
-    @Override
-    public String toString() {
-        return "Table: " + name + " Managed: " + isManaged + " Create Command: " + createCommand;
+    public boolean isTransactional() {
+        return isTransactional;
     }
 
-    public List<String> getPartitions() {
+    @Override
+    public String toString() {
+        return "Table: " + name + " Managed: " + isManaged + " Transactional:" + isTransactional + " Create Command: " + createCommand;
+    }
+
+    public List<PartitionInfo> getPartitions() {
         return partitions;
     }
 }
