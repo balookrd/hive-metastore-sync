@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 public abstract class Commands {
@@ -62,7 +63,7 @@ public abstract class Commands {
         return tablesInfo;
     }
 
-    public static void updatePartitions(Connection hive, HMSClient hms, TableInfo src, TableInfo dst) throws Exception {
+    public static void updatePartitions(HMSClient hms, TableInfo src, TableInfo dst) throws Exception {
         List<PartitionInfo> newParts = new ArrayList<>();
         for (PartitionInfo srcPart : src.getPartitions()) {
             if (findPartition(dst.getPartitions(), srcPart.getName()) == null) {
@@ -144,6 +145,7 @@ public abstract class Commands {
             });
         }
         pool.shutdown();
+        pool.awaitTermination(60, TimeUnit.MINUTES);
         return al;
     }
 
@@ -185,6 +187,8 @@ public abstract class Commands {
                 return null;
             });
         }
+        pool.shutdown();
+        pool.awaitTermination(60, TimeUnit.MINUTES);
     }
 
     private static void dropPartitions(Connection hive, TableInfo table, List<PartitionInfo> parts) throws Exception {
@@ -231,6 +235,8 @@ public abstract class Commands {
                 return null;
             });
         }
+        pool.shutdown();
+        pool.awaitTermination(60, TimeUnit.MINUTES);
     }
 
     public static String getFsDefaultName(Connection con) throws Exception {

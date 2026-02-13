@@ -82,7 +82,7 @@ public class HiveSync {
                 Commands.createTable(con2, hms2, srcTable);
             } else {
                 LOG.info("Update existing table: " + dstTable.getName());
-                Commands.updatePartitions(con2, hms2, srcTable, dstTable);
+                Commands.updatePartitions(hms2, srcTable, dstTable);
             }
         }
         for (TableInfo dstTable : dstTables) {
