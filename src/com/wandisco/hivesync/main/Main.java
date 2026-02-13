@@ -37,8 +37,7 @@ public class Main {
             Files.deleteIfExists(Paths.get(dryRunFile));
         }
 
-        HiveSync hs = new HiveSync(p.getSrcHive(), p.getSrcMeta(),
-                p.getDstHive(), p.getDstMeta(),
+        HiveSync hs = new HiveSync(p.getSrcMeta(), p.getDstMeta(), p.isMetaSasl(),
                 p.getDatabases());
         hs.execute();
     }

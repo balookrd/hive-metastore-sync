@@ -33,8 +33,8 @@ public class AbstractSuite {
             throws Exception {
         con1 = Tools.createNewHiveConnection(hive1);
         con2 = Tools.createNewHiveConnection(hive2);
-        hms1 = Tools.createNewMetaConnection(meta1);
-        hms2 = Tools.createNewMetaConnection(meta2);
+        hms1 = Tools.createNewMetaConnection(meta1, false);
+        hms2 = Tools.createNewMetaConnection(meta2, false);
         url1 = hive1;
         url2 = hive2;
         AbstractSuite.meta1 = meta1;

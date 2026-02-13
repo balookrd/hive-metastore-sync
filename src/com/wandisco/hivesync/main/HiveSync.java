@@ -7,9 +7,11 @@ import com.wandisco.hivesync.hive.TableInfo;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.sql.Connection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -19,77 +21,76 @@ import java.util.stream.Collectors;
  */
 public class HiveSync {
 
-    private final Connection con1;
-    private final Connection con2;
     private final HMSClient hms1;
     private final HMSClient hms2;
     private final List<String> dbWildcards;
 
     private static final Logger LOG = LogManager.getLogger(HiveSync.class);
 
-    public HiveSync(String srcHive, String srcMeta,
-                    String dstHive, String dstMeta,
+    public HiveSync(String srcMeta, String dstMeta,
+                    boolean metaSasl,
                     List<String> databases) throws Exception {
-        con1 = Tools.createNewHiveConnection(srcHive);
-        con2 = Tools.createNewHiveConnection(dstHive);
-        hms1 = Tools.createNewMetaConnection(srcMeta);
-        hms2 = Tools.createNewMetaConnection(dstMeta);
+        hms1 = Tools.createNewMetaConnection(srcMeta, metaSasl);
+        hms2 = Tools.createNewMetaConnection(dstMeta, metaSasl);
         this.dbWildcards = databases;
     }
 
     public void execute() throws Exception {
         HashSet<String> dbList1 = new HashSet<>();
         for (String database : dbWildcards) {
-            dbList1.addAll(Commands.getDatabases(con1, database));
+            dbList1.addAll(Commands.getDatabases(hms1, database));
         }
         HashSet<String> dbList2 = new HashSet<>();
         for (String database : dbWildcards) {
-            dbList2.addAll(Commands.getDatabases(con2, database));
+            dbList2.addAll(Commands.getDatabases(hms2, database));
         }
 
-        LOG.trace("Detect file system information");
-        String fs1 = Commands.getFsDefaultName(con1);
-        String fs2 = Commands.getFsDefaultName(con2);
-        LOG.info("Source file system: " + fs1);
-        LOG.info("Destination file system: " + fs2);
-
+        ExecutorService pool = Executors.newFixedThreadPool(8);
         for (String db : dbList1) {
             LOG.info("Syncing database: " + db);
             if (!dbList2.contains(db)) {
-                createDatabase(con2, db);
+                createDatabase(hms2, db);
             }
-            syncDatabase(db);
+            pool.submit(() -> syncDatabase(db));
         }
+        pool.shutdown();
+        while (!pool.awaitTermination(1, TimeUnit.SECONDS)) {
+            LOG.debug("Waiting for sync databases");
+        }
+
     }
 
-    private void createDatabase(Connection con, String db) throws Exception {
+    private void createDatabase(HMSClient hms, String db) throws Exception {
         LOG.info("Create database: " + db);
-        Commands.createDatabase(con, db);
+        Commands.createDatabase(hms, db);
     }
 
-    private void syncDatabase(String database) throws Exception {
-        LOG.trace("Collect table information");
-
-        List<TableInfo> srcTables = Commands.getTables(con1, hms1, database)
-                .stream().filter(t -> !t.isTransactional()).collect(Collectors.toList());
-        List<TableInfo> dstTables = Commands.getTables(con2, hms2, database)
-                .stream().filter(t -> !t.isTransactional()).collect(Collectors.toList());
-
-        for (TableInfo srcTable : srcTables) {
-            TableInfo dstTable = findTable(dstTables, srcTable.getName());
-            if (dstTable == null) {
-                LOG.info("Create non-existing table: " + srcTable.getName());
-                Commands.createTable(con2, hms2, srcTable);
-            } else {
-                LOG.info("Update existing table: " + dstTable.getName());
-                Commands.updatePartitions(hms2, srcTable, dstTable);
+    private void syncDatabase(String database) {
+        try (HMSClient hms1 = this.hms1.createClient();
+             HMSClient hms2 = this.hms2.createClient();) {
+            LOG.trace("Collect table information");
+            List<TableInfo> srcTables = Commands.getTables(hms1, database)
+                    .stream().filter(TableInfo::nonTransactional).collect(Collectors.toList());
+            List<TableInfo> dstTables = Commands.getTables(hms2, database)
+                    .stream().filter(TableInfo::nonTransactional).collect(Collectors.toList());
+            for (TableInfo srcTable : srcTables) {
+                TableInfo dstTable = findTable(dstTables, srcTable.getName());
+                if (dstTable == null) {
+                    LOG.info("Create non-existing table: " + srcTable.getName());
+                    Commands.createTable(hms2, srcTable);
+                } else {
+                    LOG.info("Update existing table: " + dstTable.getName());
+                    Commands.updatePartitions(hms2, srcTable, dstTable);
+                }
             }
-        }
-        for (TableInfo dstTable : dstTables) {
-            if (findTable(srcTables, dstTable.getName()) == null) {
-                LOG.info("Drop table: " + dstTable.getName());
-                Commands.dropTable(con2, dstTable);
+            for (TableInfo dstTable : dstTables) {
+                if (findTable(srcTables, dstTable.getName()) == null) {
+                    LOG.info("Drop table: " + dstTable.getName());
+                    Commands.dropTable(hms2, dstTable);
+                }
             }
+        } catch (Exception e) {
+            LOG.error("Error syncing database: " + database, e);
         }
     }
 

@@ -34,7 +34,7 @@ public class CommandsTest extends AbstractTest {
 
     @Test
     public void getDatabases() throws Exception {
-        List<String> result = Commands.getDatabases(con1, "db%");
+        List<String> result = Commands.getDatabases(hms1, "db*");
         Assert.assertEquals(result.size(), 3);
         Assert.assertTrue(result.contains("db1"));
         Assert.assertTrue(result.contains("db2"));
@@ -43,12 +43,14 @@ public class CommandsTest extends AbstractTest {
 
     @Test
     public void getTables() throws Exception {
-        List<TableInfo> result = Commands.getTables(con1, hms1, "db1");
+        List<TableInfo> result = Commands.getTables(hms1, "db1");
         Assert.assertEquals(result.size(), 1);
-        Assert.assertEquals(result.get(0).getName(), "db1.table1");
-        result = Commands.getTables(con1, hms1, "db2");
+        Assert.assertEquals(result.get(0).getDb(), "db1");
+        Assert.assertEquals(result.get(0).getName(), "table1");
+        result = Commands.getTables(hms1, "db2");
         Assert.assertEquals(result.size(), 1);
-        Assert.assertEquals(result.get(0).getName(), "db2.table2");
+        Assert.assertEquals(result.get(0).getDb(), "db2");
+        Assert.assertEquals(result.get(0).getName(), "table2");
     }
 
     @AfterClass

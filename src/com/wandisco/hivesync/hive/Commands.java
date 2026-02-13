@@ -3,24 +3,12 @@ package com.wandisco.hivesync.hive;
 import com.wandisco.hivesync.common.Tools;
 import com.wandisco.hivesync.main.HiveSync;
 import org.apache.hadoop.hive.metastore.PartitionDropOptions;
-import org.apache.hadoop.hive.metastore.api.FieldSchema;
-import org.apache.hadoop.hive.metastore.api.Partition;
-import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
-import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.metastore.api.*;
 import org.apache.hadoop.hive.metastore.utils.FileUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.BufferedWriter;
-import java.io.FileWriter;
-import java.io.PrintWriter;
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -36,28 +24,26 @@ public abstract class Commands {
         dryRunFile = name;
     }
 
-    public static void createTable(Connection hive, HMSClient hms, TableInfo table) throws Exception {
-        Commands.executeQuery(hive, table.getCreateCommand());
-        Commands.createPartitions(hms, table, table.getPartitions());
+    public static void createTable(HMSClient hms, TableInfo tableInfo) throws Exception {
+        Table table = tableInfo.getTable().deepCopy();
+        table.setTableType("EXTERNAL_TABLE");
+        Map<String, String> params = new HashMap<>();
+        params.put("EXTERNAL", "TRUE");
+        table.setParameters(params);
+        hms.createTable(table);
+        createPartitions(hms, tableInfo, tableInfo.getPartitions());
     }
 
-    public static void dropTable(Connection hive, TableInfo table) throws Exception {
-        Commands.executeQuery(hive, "DROP TABLE " + table.getName());
+    public static void dropTable(HMSClient hms, TableInfo table) throws Exception {
+        hms.dropTable(table.getDb(), table.getName(), false, true);
     }
 
-    public static ArrayList<TableInfo> getTables(Connection hive, HMSClient hms, String dbName) throws Exception {
+    public static ArrayList<TableInfo> getTables(HMSClient hms, String dbName) throws Exception {
         ArrayList<TableInfo> tablesInfo = new ArrayList<>();
-        List<String> srcTables = Commands.forceExecuteQuery(hive, "SHOW TABLES IN " + dbName);
-        for (String srcTable : srcTables) {
-            List<String> createCommand = queryCreateCommand(hive, dbName + "." + srcTable);
-            boolean isManaged = queryIsManaged(hive, dbName + "." + srcTable);
+        List<String> tables = hms.getAllTables(dbName);
+        for (String srcTable : tables) {
             List<PartitionInfo> partitions = queryPartitions(hms, dbName, srcTable);
-            TableInfo ti = new TableInfo(
-                    hms.getTable(dbName, srcTable),
-                    dbName + "." + srcTable,
-                    createCommand,
-                    partitions,
-                    isManaged);
+            TableInfo ti = new TableInfo(hms.getTable(dbName, srcTable), partitions);
             tablesInfo.add(ti);
         }
         return tablesInfo;
@@ -80,40 +66,13 @@ public abstract class Commands {
         dropPartitions(hms, dst, delParts);
     }
 
-    private static PartitionInfo findPartition(List<PartitionInfo> parts, String partititon) {
+    private static PartitionInfo findPartition(List<PartitionInfo> parts, String partition) {
         for (PartitionInfo pi : parts) {
-            if (pi.getName().equalsIgnoreCase(partititon)) {
+            if (pi.getName().equalsIgnoreCase(partition)) {
                 return pi;
             }
         }
         return null;
-    }
-
-    private static List<String> queryCreateCommand(Connection hive, String srcTable) throws Exception {
-        return Commands.forceExecuteQuery(hive, "SHOW CREATE TABLE " + srcTable);
-    }
-
-    private static boolean queryIsManaged(Connection con, String tableName) throws Exception {
-        List<String> descFormatted = Commands.forceExecuteQuery(con, "DESC FORMATTED " + tableName);
-        for (String s : descFormatted) {
-            if (s.startsWith("Table Type:")) {
-                if (s.contains("MANAGED_TABLE")) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    private static List<PartitionInfo> queryPartitions(Connection hive, String tableName) throws Exception {
-        try {
-            return Commands.forceExecuteQuery(hive, "SHOW PARTITIONS " + tableName)
-                    .stream()
-                    .map(part -> new PartitionInfo(part, Collections.emptyList(), ""))
-                    .collect(Collectors.toList());
-        } catch (SQLException e) {
-            return Collections.emptyList();
-        }
     }
 
     private static List<PartitionInfo> queryPartitions(HMSClient hms, String dbName, String tableName) throws Exception {
@@ -133,9 +92,9 @@ public abstract class Commands {
                 try (HMSClient hmsClient = hms.createClient()) {
                     List<PartitionInfo> pList = hmsClient.getPartitionsByNames(dbName, tableName, batch)
                             .stream()
-                            .map(partition ->
-                                    new PartitionInfo(FileUtils.makePartName(partColumns, partition.getValues()),
-                                            partition.getValues(), partition.getSd().getLocation())
+                            .map(p ->
+                                    new PartitionInfo(FileUtils.makePartName(partColumns, p.getValues()),
+                                            p.getValues(), p.getSd().getLocation())
                             ).collect(Collectors.toList());
                     synchronized (al) {
                         al.addAll(pList);
@@ -145,31 +104,10 @@ public abstract class Commands {
             });
         }
         pool.shutdown();
-        pool.awaitTermination(60, TimeUnit.MINUTES);
-        return al;
-    }
-
-    private static void createPartitions(Connection hive, TableInfo table, List<PartitionInfo> parts) throws Exception {
-        int batchSize = 100;
-        for (int i = 0; i < parts.size(); i += batchSize) {
-            List<PartitionInfo> batch = parts.subList(i, Math.min(i + batchSize, parts.size()));
-            StringBuilder query = new StringBuilder();
-            query.append("ALTER TABLE ").append(table.getName()).append(" ADD IF NOT EXISTS ");
-            boolean notFirst = false;
-            for (PartitionInfo partition : batch) {
-                LOG.debug("- create partition: " + partition);
-                if (notFirst) {
-                    query.append(",");
-                } else {
-                    notFirst = true;
-                }
-                query.append("PARTITION (").append(partition.getNameTranslated()).append(")");
-                if (!partition.getLocation().isEmpty()) {
-                    query.append(" LOCATION '").append(partition.getLocation()).append("'");
-                }
-            }
-            Commands.executeQuery(hive, query.toString());
+        while (!pool.awaitTermination(1, TimeUnit.SECONDS)) {
+            LOG.debug("Waiting for partitions to be received");
         }
+        return al;
     }
 
     private static void createPartitions(HMSClient hms, TableInfo tableInfo, List<PartitionInfo> parts) throws Exception {
@@ -188,26 +126,8 @@ public abstract class Commands {
             });
         }
         pool.shutdown();
-        pool.awaitTermination(60, TimeUnit.MINUTES);
-    }
-
-    private static void dropPartitions(Connection hive, TableInfo table, List<PartitionInfo> parts) throws Exception {
-        int batchSize = 100;
-        for (int i = 0; i < parts.size(); i += batchSize) {
-            List<PartitionInfo> batch = parts.subList(i, Math.min(i + batchSize, parts.size()));
-            StringBuilder query = new StringBuilder();
-            query.append("ALTER TABLE ").append(table.getName()).append(" DROP IF EXISTS ");
-            boolean notFirst = false;
-            for (PartitionInfo partition : batch) {
-                LOG.debug("- drop partition: " + partition);
-                if (notFirst) {
-                    query.append(",");
-                } else {
-                    notFirst = true;
-                }
-                query.append("PARTITION (").append(partition.getNameTranslated()).append(")");
-            }
-            Commands.executeQuery(hive, query.toString());
+        while (!pool.awaitTermination(1, TimeUnit.SECONDS)) {
+            LOG.debug("Waiting for partitions to be created");
         }
     }
 
@@ -224,88 +144,33 @@ public abstract class Commands {
             pool.submit(() -> {
                 try (HMSClient hmsClient = hms.createClient()) {
                     for (PartitionInfo p : batch) {
-                        hmsClient.dropPartition(
-                                table.getTable().getDbName(),
-                                table.getTable().getTableName(),
-                                p.getValues(),
-                                options
-                        );
+                        hmsClient.dropPartition(table.getDb(), table.getName(), p.getValues(), options);
                     }
                 }
                 return null;
             });
         }
         pool.shutdown();
-        pool.awaitTermination(60, TimeUnit.MINUTES);
-    }
-
-    public static String getFsDefaultName(Connection con) throws Exception {
-        String result = Tools.join(Commands.forceExecuteQuery(con, "SET fs.default.name"));
-        if (!result.startsWith("fs.default.name=")) {
-            throw new Exception("Can't detect file system");
-        }
-        return result.replaceAll("fs.default.name=", "");
-    }
-
-    public static List<String> executeQuery(Connection con, String query) throws Exception {
-        if (dryRunFile != null) {
-            LOG.trace("Dry run: " + query);
-            try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(dryRunFile, true)))) {
-                out.println(query);
-            }
-            return Collections.emptyList();
-        } else {
-            return forceExecuteQuery(con, query);
+        while (!pool.awaitTermination(1, TimeUnit.SECONDS)) {
+            LOG.debug("Waiting for partitions to be dropped");
         }
     }
 
-    private static List<String> forceExecuteQuery(Connection con, String query)
-            throws Exception {
-        List<String> al = new ArrayList<>();
-        Statement s = con.createStatement();
-        ResultSet rs = null;
-        try {
-            LOG.trace("Executing: " + query);
-            s.execute(query);
-            rs = s.getResultSet();
-
-            if (rs == null) {
-                LOG.trace("Empty result.");
-            } else {
-                LOG.trace("Result:");
-                int colN = rs.getMetaData().getColumnCount();
-                while (rs.next()) {
-                    StringBuilder sb = new StringBuilder();
-                    for (int cid = 1; cid <= colN; cid++) {
-                        sb.append(rs.getString(cid));
-                        if (cid < colN) {
-                            sb.append("\t");
-                        }
-                    }
-                    al.add(sb.toString());
-                    LOG.trace(sb.toString());
-                }
-            }
-        } finally {
-            if (rs != null) {
-                rs.close();
-            }
-            s.close();
-        }
-        return al;
-    }
-
-    public static List<String> getDatabases(Connection connection, String pattern) throws Exception {
+    public static List<String> getDatabases(HMSClient hms, String pattern) throws Exception {
         LOG.trace("Getting database list");
-        return Commands.forceExecuteQuery(connection, "SHOW DATABASES LIKE '" + pattern + "'");
+        return hms.getAllDatabases().stream()
+                .filter(d -> Tools.match(pattern, d)).collect(Collectors.toList());
     }
 
-    public static void createDatabase(Connection con, String db) throws Exception {
+    public static void createDatabase(HMSClient hms, String dbName) throws Exception {
         LOG.trace("Creating database");
-        executeQuery(con, "CREATE DATABASE " + db);
+        Database db = new Database();
+        db.setName(dbName);
+        //db.setLocationUri("/warehouse/" + db + ".db");
+        hms.createDatabase(db);
     }
 
-    public static Partition createPartition(
+    private static Partition createPartition(
             Table table,
             List<String> values,
             String customLocation) {

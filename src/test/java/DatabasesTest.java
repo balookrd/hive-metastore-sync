@@ -32,8 +32,8 @@ public class DatabasesTest extends AbstractTest {
 
     @Test
     public void f() throws Exception {
-        List<String> dbs = Collections.singletonList("db%");
-        HiveSync hs = new HiveSync(url1, meta1, url2, meta2, dbs);
+        List<String> dbs = Collections.singletonList("db*");
+        HiveSync hs = new HiveSync(meta1, meta2, false, dbs);
         hs.execute();
         Statement s2 = con2.createStatement();
         checkResult(s2, "show databases", new String[]{"db1", "db2", "db3", "default"});

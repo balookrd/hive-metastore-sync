@@ -37,6 +37,11 @@ public class Params {
             required = true)
     private String dstMeta;
 
+    @Parameter(names = {"--meta-sasl"},
+            description = "hive.metastore.sasl.enabled = true",
+            required = false)
+    private Boolean metaSasl;
+
     @Parameter(names = {"--database"},
             description = "Database(s), comma-separated list with wildcards")
     private List<String> databases = new ArrayList<>(Arrays.asList("default"));
@@ -63,6 +68,10 @@ public class Params {
 
     public String getDstMeta() {
         return dstMeta;
+    }
+
+    public boolean isMetaSasl() {
+        return metaSasl != null && metaSasl;
     }
 
     public List<String> getDatabases() {
