@@ -55,9 +55,8 @@ public class HiveSync {
         }
         pool.shutdown();
         while (!pool.awaitTermination(1, TimeUnit.SECONDS)) {
-            LOG.debug("Waiting for sync databases");
+            LOG.debug("Waiting for syncing databases");
         }
-
     }
 
     private void createDatabase(HMSClient hms, String db) throws Exception {
