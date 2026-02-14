@@ -2,52 +2,13 @@ package com.wandisco.hivesync.common;
 
 import com.wandisco.hivesync.hive.HMSClient;
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.metastore.api.MetaException;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
+import java.util.Collection;
 
-/**
- * Utility class
- *
- * @author Oleg Danilov
- *
- */
 public class Tools {
-
-    /**
-     * Read file line by line and return list of strings
-     **/
-    public static List<String> readTextFile(String filename) {
-        ArrayList<String> list = new ArrayList<>();
-        try {
-            BufferedReader br = new BufferedReader(new FileReader(filename));
-            String line;
-            while ((line = br.readLine()) != null) {
-                list.add(line);
-            }
-            br.close();
-        } catch (Exception e) {
-            System.err.println("Can't read file " + filename);
-        }
-        return list;
-    }
-
-    public static String join(List<String> list) {
-        StringBuilder sb = new StringBuilder();
-        Iterator<String> iter = list.iterator();
-        while (iter.hasNext()) {
-            sb.append(iter.next());
-            if (iter.hasNext()) {
-                sb.append(System.lineSeparator());
-            }
-        }
-        return sb.toString();
-    }
 
     // The main function that checks if
     // two given strings match. The first string
@@ -92,6 +53,15 @@ public class Tools {
         return false;
     }
 
+    public static boolean match(Collection<String> pattern, String string) {
+        for (String patternItem : pattern) {
+            if (match(patternItem, string)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static Connection createNewHiveConnection(String connectionString) throws Exception {
         if (connectionString.startsWith("jdbc:hive2"))
             Class.forName("org.apache.hive.jdbc.HiveDriver");
@@ -100,7 +70,7 @@ public class Tools {
         return DriverManager.getConnection(connectionString);
     }
 
-    public static HMSClient createNewMetaConnection(String connectionString, boolean metaSasl) throws Exception {
+    public static HMSClient createNewMetaConnection(String connectionString, boolean metaSasl) throws MetaException {
         HiveConf conf = new HiveConf();
         conf.set("hive.metastore.uris", connectionString);
         conf.set("hive.metastore.sasl.enabled", metaSasl ? "true" : "false");

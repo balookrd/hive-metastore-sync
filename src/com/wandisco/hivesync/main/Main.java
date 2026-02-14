@@ -38,7 +38,7 @@ public class Main {
         }
 
         HiveSync hs = new HiveSync(p.getSrcMeta(), p.getDstMeta(), p.isMetaSasl(),
-                p.getDatabases());
+                p.getDatabases(), p.getTables());
         hs.execute();
     }
 }

@@ -31,7 +31,7 @@ public class BasicTest extends AbstractTest {
     @Test
     public void f() throws Exception {
         List<String> dbs = Collections.singletonList("default");
-        HiveSync hs = new HiveSync(meta1, meta2, false, dbs);
+        HiveSync hs = new HiveSync(meta1, meta2, false, dbs, Collections.singletonList("*"));
         hs.execute();
 
         Statement s2 = con2.createStatement();
