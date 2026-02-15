@@ -7,11 +7,6 @@ import com.wandisco.hivesync.hive.Commands;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
-/**
- *
- * @author Oleg Danilov
- *
- */
 public class Main {
     public static void main(String[] args) throws Exception {
         Params p = new Params();

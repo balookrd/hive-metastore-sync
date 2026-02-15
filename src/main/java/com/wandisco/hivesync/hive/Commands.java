@@ -9,7 +9,10 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.thrift.TException;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
@@ -62,51 +65,14 @@ public abstract class Commands {
         params.put("replicated", "true");
         tableCopy.setParameters(params);
         hms.createTable(tableCopy);
-        createPartitions(hms, table, table.getPartitions());
+        if (table.isPartitioned()) {
+            createPartitions(hms, table, table.getPartitions());
+        }
     }
 
     public static void dropTable(HMSClient hms, TableInfo table) throws TException {
         LOG.trace("Dropping table: {}.{}", table.getDb(), table.getName());
         hms.dropTable(table.getDb(), table.getName(), false, true);
-    }
-
-    public static void updatePartitions(HMSClient srcHms, HMSClient dstHms, TableInfo src, TableInfo dst) {
-        LOG.trace("Updating partitions: {}.{}", dst.getDb(), dst.getName());
-        Map<String, PartitionInfo> srcParts = getPartitionsMap(src);
-        Map<String, PartitionInfo> dstParts = getPartitionsMap(dst);
-        // update partitions for both tables
-        Set<String> bothParts = new HashSet<>(srcParts.keySet());
-        bothParts.retainAll(dstParts.keySet());
-        // create new partitions from src in dst
-        if (srcParts.size() != bothParts.size()) {
-            updatePartitions(srcHms, dstHms, src, srcParts, bothParts);
-        }
-        // create new partitions from dst in src
-        if (dstParts.size() != bothParts.size()) {
-            updatePartitions(dstHms, srcHms, dst, dstParts, bothParts);
-        }
-    }
-
-    private static Map<String, PartitionInfo> getPartitionsMap(TableInfo table) {
-        return table.getPartitions().stream()
-                .collect(Collectors.toMap(PartitionInfo::getName, t -> t));
-    }
-
-    private static void updatePartitions(HMSClient srcHms, HMSClient dstHms, TableInfo table,
-                                         Map<String, PartitionInfo> parts, Collection<String> bothParts) {
-        List<PartitionInfo> newParts = new ArrayList<>();
-        List<PartitionInfo> delParts = new ArrayList<>();
-        for (Map.Entry<String, PartitionInfo> e : parts.entrySet()) {
-            if (!bothParts.contains(e.getKey())) {
-                if (e.getValue().isReplicated()) {
-                    delParts.add(e.getValue());
-                } else {
-                    newParts.add(e.getValue());
-                }
-            }
-        }
-        createPartitions(dstHms, table, newParts);
-        dropPartitions(srcHms, table, delParts);
     }
 
     private static List<PartitionInfo> queryPartitions(HMSClient hms, String dbName, String tableName) throws TException {
@@ -143,7 +109,7 @@ public abstract class Commands {
         return al;
     }
 
-    private static void createPartitions(HMSClient hms, TableInfo table, List<PartitionInfo> parts) {
+    public static void createPartitions(HMSClient hms, TableInfo table, List<PartitionInfo> parts) {
         if (parts.isEmpty()) {
             return;
         }
@@ -165,7 +131,7 @@ public abstract class Commands {
         awaitTermination(pool, "Waiting for partitions to be created");
     }
 
-    private static void dropPartitions(HMSClient hms, TableInfo table, List<PartitionInfo> parts) {
+    public static void dropPartitions(HMSClient hms, TableInfo table, List<PartitionInfo> parts) {
         if (parts.isEmpty()) {
             return;
         }

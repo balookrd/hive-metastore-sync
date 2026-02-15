@@ -2,7 +2,7 @@ package com.wandisco.hivesync.common;
 
 import com.wandisco.hivesync.hive.HMSClient;
 import com.wandisco.hivesync.main.HiveSync;
-import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -94,7 +94,7 @@ public class Tools {
     }
 
     public static HMSClient createNewMetaConnection(String connectionString, boolean metaSasl) throws MetaException {
-        HiveConf conf = new HiveConf();
+        Configuration conf = new Configuration();
         conf.set("hive.metastore.uris", connectionString);
         conf.set("hive.metastore.sasl.enabled", metaSasl ? "true" : "false");
         return new HMSClient(conf);

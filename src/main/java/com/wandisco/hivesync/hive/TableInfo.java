@@ -13,6 +13,7 @@ public class TableInfo {
 
     private final boolean isManaged;
     private final boolean isTransactional;
+    private final boolean isPartitioned;
     private final boolean isReplicated;
 
     public TableInfo(Table table, List<PartitionInfo> partitions) {
@@ -20,6 +21,7 @@ public class TableInfo {
         this.partitions = partitions;
         this.isManaged = table.getTableType().equalsIgnoreCase("MANAGED_TABLE");
         this.isTransactional = getBoolParameter(table.getParameters(), "transactional");
+        this.isPartitioned = table.getPartitionKeysSize() != 0;
         this.isReplicated = getBoolParameter(table.getParameters(), "replicated");
     }
 
@@ -45,6 +47,10 @@ public class TableInfo {
 
     public boolean nonTransactional() {
         return !isTransactional;
+    }
+
+    public boolean isPartitioned() {
+        return isPartitioned;
     }
 
     public boolean isReplicated() {

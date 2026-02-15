@@ -8,9 +8,6 @@ import java.util.List;
 
 /**
  * Command line parameters
- *
- * @author Oleg Danilov
- *
  */
 public class Params {
 
@@ -28,7 +25,7 @@ public class Params {
     private String dstMeta;
 
     @Parameter(names = {"--meta-sasl"},
-            description = "hive.metastore.sasl.enabled = true",
+            description = "Set 'hive.metastore.sasl.enabled = true' (default false)",
             required = false)
     private Boolean metaSasl = false;
 
