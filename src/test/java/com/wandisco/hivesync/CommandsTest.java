@@ -1,4 +1,4 @@
-package test.java;
+package com.wandisco.hivesync;
 
 import com.wandisco.hivesync.hive.Commands;
 import com.wandisco.hivesync.hive.TableInfo;

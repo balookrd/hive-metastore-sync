@@ -1,4 +1,4 @@
-package test.java;
+package com.wandisco.hivesync;
 
 import com.wandisco.hivesync.main.HiveSync;
 import org.testng.annotations.AfterClass;

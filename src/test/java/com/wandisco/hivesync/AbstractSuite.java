@@ -1,4 +1,4 @@
-package test.java;
+package com.wandisco.hivesync;
 
 import com.wandisco.hivesync.common.Tools;
 import com.wandisco.hivesync.hive.HMSClient;
@@ -24,22 +24,54 @@ public class AbstractSuite {
     private static String meta2;
 
     @Parameters({"box1_hive", "box1_meta",
-            "box2_hive", "box2_meta",
-            "hadoop_home", "hive_home"})
+            "box2_hive", "box2_meta"})
     @BeforeSuite
-    public void setupSuite(String hive1, String meta1,
-                           String hive2, String meta2,
-                           String hadoopHome, String hiveHome)
-            throws Exception {
-        con1 = Tools.createNewHiveConnection(hive1);
-        con2 = Tools.createNewHiveConnection(hive2);
+    public void setupSuite(String hive1, String meta1, String hive2, String meta2) throws Exception {
+        DockerComposeManager.start("src/test/resources/hive1.yaml");
+        System.err.print("Connecting to hive1 ");
+        for (int i = 0; i < 30; i++) {
+            try {
+                con1 = Tools.createNewHiveConnection(hive1);
+                break;
+            } catch (Exception e) {
+                System.err.print(".");
+                Thread.sleep(1_000);
+            }
+        }
+        System.err.println();
+
+        DockerComposeManager.start("src/test/resources/hive2.yaml");
+        System.err.print("Connecting to hive2 ");
+        for (int i = 0; i < 30; i++) {
+            try {
+                con2 = Tools.createNewHiveConnection(hive2);
+                break;
+            } catch (Exception e) {
+                System.err.print(".");
+                Thread.sleep(1_000);
+            }
+        }
+        System.err.println();
+
         hms1 = Tools.createNewMetaConnection(meta1, false);
         hms2 = Tools.createNewMetaConnection(meta2, false);
         url1 = hive1;
         url2 = hive2;
         AbstractSuite.meta1 = meta1;
         AbstractSuite.meta2 = meta2;
+
         fullCleanup("BEFORE SUITE CLEANUP");
+    }
+
+    @AfterSuite
+    public void cleanupSuite() throws Exception {
+        fullCleanup("AFTER SUITE CLEANUP");
+        con1.close();
+        con2.close();
+        hms1.close();
+        hms2.close();
+        DockerComposeManager.stop("src/test/resources/hive1.yaml");
+        DockerComposeManager.stop("src/test/resources/hive2.yaml");
     }
 
     public static void fullCleanup(String name) throws SQLException {
@@ -82,21 +114,6 @@ public class AbstractSuite {
 
     public static HMSClient getHms2() {
         return hms2;
-    }
-
-    @AfterSuite
-    public void cleanupSuite() throws SQLException {
-        fullCleanup("AFTER SUITE CLEANUP");
-        try {
-            con1.close();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        try {
-            con2.close();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
     }
 
     public static String getUrl1() {

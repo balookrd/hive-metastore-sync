@@ -1,4 +1,4 @@
-package test.java;
+package com.wandisco.hivesync;
 
 import com.wandisco.hivesync.hive.HMSClient;
 import org.testng.Assert;
@@ -33,8 +33,8 @@ public abstract class AbstractTest {
         meta2 = AbstractSuite.getMeta2();
     }
 
-    protected void checkResult(Statement stm, String query, String[] strings) throws SQLException {
-        ResultSet rs = stm.executeQuery(query);
+    protected void checkResult(Statement stmt, String query, String[] strings) throws SQLException {
+        ResultSet rs = stmt.executeQuery(query);
         for (String string : strings) {
             Assert.assertTrue(rs.next());
             Assert.assertEquals(rs.getString(1), string);
