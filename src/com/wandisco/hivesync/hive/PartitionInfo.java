@@ -1,17 +1,23 @@
 package com.wandisco.hivesync.hive;
 
+import org.apache.hadoop.hive.metastore.api.Partition;
+
 import java.util.List;
+
+import static com.wandisco.hivesync.common.Tools.getBoolParameter;
 
 public class PartitionInfo {
 
     private final String name;
     private final List<String> values;
     private final String location;
+    private final boolean isReplicated;
 
-    public PartitionInfo(String name, List<String> values, String location) {
+    public PartitionInfo(String name, Partition partition) {
         this.name = name;
-        this.values = values;
-        this.location = location;
+        this.values = partition.getValues();
+        this.location = partition.getSd().getLocation();
+        this.isReplicated = getBoolParameter(partition.getParameters(), "replicated");
     }
 
     public String getName() {
@@ -26,7 +32,7 @@ public class PartitionInfo {
         return location;
     }
 
-    public String getNameTranslated() {
-        return name.replaceAll("=", "='").replaceAll("/", "',") + "'";
+    public boolean isReplicated() {
+        return isReplicated;
     }
 }

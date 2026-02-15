@@ -1,14 +1,22 @@
 package com.wandisco.hivesync.common;
 
 import com.wandisco.hivesync.hive.HMSClient;
+import com.wandisco.hivesync.main.HiveSync;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.MetaException;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.util.Collection;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class Tools {
+
+    private static final Logger LOG = LogManager.getLogger(HiveSync.class);
 
     // The main function that checks if
     // two given strings match. The first string
@@ -60,6 +68,21 @@ public class Tools {
             }
         }
         return false;
+    }
+
+    public static void awaitTermination(ExecutorService pool, String text) {
+        pool.shutdown();
+        try {
+            while (!pool.awaitTermination(1, TimeUnit.SECONDS)) {
+                LOG.trace(text);
+            }
+        } catch (InterruptedException ignored) {
+        }
+    }
+
+    public static boolean getBoolParameter(Map<String, String> params, String key) {
+        String val = params.get(key);
+        return val != null && val.equalsIgnoreCase("true");
     }
 
     public static Connection createNewHiveConnection(String connectionString) throws Exception {

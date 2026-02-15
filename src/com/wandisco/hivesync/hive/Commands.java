@@ -9,14 +9,12 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.thrift.TException;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+
+import static com.wandisco.hivesync.common.Tools.awaitTermination;
 
 public abstract class Commands {
 
@@ -36,14 +34,14 @@ public abstract class Commands {
     }
 
     public static void createDatabase(HMSClient hms, Database db) throws TException {
-        LOG.trace("Creating database {}", db.getName());
+        LOG.trace("Creating database: {}", db.getName());
         Database dbCopy = db.deepCopy();
         dbCopy.unsetParameters();
         hms.createDatabase(dbCopy);
     }
 
     public static ArrayList<TableInfo> getTables(HMSClient hms, String dbName) throws TException {
-        LOG.trace("Getting table list from {}", dbName);
+        LOG.trace("Getting table list: {}", dbName);
         ArrayList<TableInfo> tablesInfo = new ArrayList<>();
         List<String> tables = hms.getAllTables(dbName);
         for (String srcTable : tables) {
@@ -55,41 +53,64 @@ public abstract class Commands {
     }
 
     public static void createTable(HMSClient hms, TableInfo table) throws TException {
-        LOG.trace("Creating table {}.{}", table.getDb(), table.getName());
+        LOG.trace("Creating table: {}.{}", table.getDb(), table.getName());
         Table tableCopy = table.getTable().deepCopy();
         tableCopy.setTableType("EXTERNAL_TABLE");
         Map<String, String> params = new HashMap<>();
         params.put("EXTERNAL", "TRUE");
+        // params.put("external.table.purge", "FALSE");
+        params.put("replicated", "true");
         tableCopy.setParameters(params);
         hms.createTable(tableCopy);
         createPartitions(hms, table, table.getPartitions());
     }
 
-    public static void dropTable(HMSClient hms, TableInfo table) throws Exception {
-        LOG.trace("Dropping table {}.{}", table.getDb(), table.getName());
+    public static void dropTable(HMSClient hms, TableInfo table) throws TException {
+        LOG.trace("Dropping table: {}.{}", table.getDb(), table.getName());
         hms.dropTable(table.getDb(), table.getName(), false, true);
     }
 
-    public static void updatePartitions(HMSClient hms, TableInfo src, TableInfo dst) {
-        LOG.trace("Updating partitions {}.{}", dst.getDb(), dst.getName());
+    public static void updatePartitions(HMSClient srcHms, HMSClient dstHms, TableInfo src, TableInfo dst) {
+        LOG.trace("Updating partitions: {}.{}", dst.getDb(), dst.getName());
+        Map<String, PartitionInfo> srcParts = getPartitionsMap(src);
+        Map<String, PartitionInfo> dstParts = getPartitionsMap(dst);
+        // update partitions for both tables
+        Set<String> bothParts = new HashSet<>(srcParts.keySet());
+        bothParts.retainAll(dstParts.keySet());
+        // create new partitions from src in dst
+        if (srcParts.size() != bothParts.size()) {
+            updatePartitions(srcHms, dstHms, src, srcParts, bothParts);
+        }
+        // create new partitions from dst in src
+        if (dstParts.size() != bothParts.size()) {
+            updatePartitions(dstHms, srcHms, dst, dstParts, bothParts);
+        }
+    }
+
+    private static Map<String, PartitionInfo> getPartitionsMap(TableInfo table) {
+        return table.getPartitions().stream()
+                .collect(Collectors.toMap(PartitionInfo::getName, t -> t));
+    }
+
+    private static void updatePartitions(HMSClient srcHms, HMSClient dstHms, TableInfo table,
+                                         Map<String, PartitionInfo> parts, Collection<String> bothParts) {
         List<PartitionInfo> newParts = new ArrayList<>();
-        for (PartitionInfo srcPart : src.getPartitions()) {
-            if (findPartition(dst.getPartitions(), srcPart.getName()) == null) {
-                newParts.add(srcPart);
-            }
-        }
-        createPartitions(hms, dst, newParts);
         List<PartitionInfo> delParts = new ArrayList<>();
-        for (PartitionInfo dstPart : dst.getPartitions()) {
-            if (findPartition(src.getPartitions(), dstPart.getName()) == null) {
-                delParts.add(dstPart);
+        for (Map.Entry<String, PartitionInfo> e : parts.entrySet()) {
+            if (!bothParts.contains(e.getKey())) {
+                if (e.getValue().isReplicated()) {
+                    delParts.add(e.getValue());
+                } else {
+                    newParts.add(e.getValue());
+                }
             }
         }
-        dropPartitions(hms, dst, delParts);
+        createPartitions(dstHms, table, newParts);
+        dropPartitions(srcHms, table, delParts);
     }
 
     private static List<PartitionInfo> queryPartitions(HMSClient hms, String dbName, String tableName) throws TException {
-        LOG.trace("Getting partitions {}.{}", dbName, tableName);
+        LOG.trace("Getting partitions: {}.{}", dbName, tableName);
         Table table = hms.getTable(dbName, tableName);
         List<String> partColumns = table
                 .getPartitionKeys()
@@ -107,8 +128,8 @@ public abstract class Commands {
                     List<PartitionInfo> pList = hmsClient.getPartitionsByNames(dbName, tableName, batch)
                             .stream()
                             .map(p ->
-                                    new PartitionInfo(FileUtils.makePartName(partColumns, p.getValues()),
-                                            p.getValues(), p.getSd().getLocation())
+                                            new PartitionInfo(FileUtils.makePartName(partColumns, p.getValues()), p)
+                                    //p.getCreateTime(), p.getValues(), p.getSd().getLocation(), p.getParameters())
                             )
                             .collect(Collectors.toList());
                     synchronized (al) {
@@ -123,7 +144,10 @@ public abstract class Commands {
     }
 
     private static void createPartitions(HMSClient hms, TableInfo table, List<PartitionInfo> parts) {
-        LOG.trace("Creating partitions {}.{}", table.getDb(), table.getName());
+        if (parts.isEmpty()) {
+            return;
+        }
+        LOG.trace("Creating partitions: {}.{}", table.getDb(), table.getName());
         int batchSize = 1000;
         ExecutorService pool = Executors.newFixedThreadPool(6);
         for (int i = 0; i < parts.size(); i += batchSize) {
@@ -142,7 +166,10 @@ public abstract class Commands {
     }
 
     private static void dropPartitions(HMSClient hms, TableInfo table, List<PartitionInfo> parts) {
-        LOG.trace("Dropping partitions {}.{}", table.getDb(), table.getName());
+        if (parts.isEmpty()) {
+            return;
+        }
+        LOG.trace("Dropping partitions: {}.{}", table.getDb(), table.getName());
         int batchSize = 1000;
         ExecutorService pool = Executors.newFixedThreadPool(6);
         PartitionDropOptions options = new PartitionDropOptions()
@@ -163,15 +190,6 @@ public abstract class Commands {
         awaitTermination(pool, "Waiting for partitions to be dropped");
     }
 
-    private static PartitionInfo findPartition(List<PartitionInfo> parts, String partition) {
-        for (PartitionInfo pi : parts) {
-            if (pi.getName().equalsIgnoreCase(partition)) {
-                return pi;
-            }
-        }
-        return null;
-    }
-
     private static Partition createPartition(Table table, List<String> values, String location) {
         StorageDescriptor sdCopy = table.getSd().deepCopy();
         sdCopy.setLocation(location);
@@ -180,19 +198,10 @@ public abstract class Commands {
         partition.setTableName(table.getTableName());
         partition.setValues(values);
         partition.setSd(sdCopy);
-        partition.setCreateTime((int) (System.currentTimeMillis() / 1000));
         partition.setLastAccessTime(0);
-        partition.unsetParameters();
+        Map<String, String> params = new HashMap<>();
+        params.put("replicated", "true");
+        partition.setParameters(params);
         return partition;
-    }
-
-    public static void awaitTermination(ExecutorService pool, String text) {
-        pool.shutdown();
-        try {
-            while (!pool.awaitTermination(1, TimeUnit.SECONDS)) {
-                LOG.trace(text);
-            }
-        } catch (InterruptedException ignored) {
-        }
     }
 }

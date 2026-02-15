@@ -4,6 +4,8 @@ import org.apache.hadoop.hive.metastore.api.Table;
 
 import java.util.List;
 
+import static com.wandisco.hivesync.common.Tools.getBoolParameter;
+
 public class TableInfo {
 
     private final Table table;
@@ -11,13 +13,14 @@ public class TableInfo {
 
     private final boolean isManaged;
     private final boolean isTransactional;
+    private final boolean isReplicated;
 
     public TableInfo(Table table, List<PartitionInfo> partitions) {
         this.table = table;
         this.partitions = partitions;
         this.isManaged = table.getTableType().equalsIgnoreCase("MANAGED_TABLE");
-        String transactional = table.getParameters().get("transactional");
-        this.isTransactional = transactional != null && transactional.equalsIgnoreCase("true");
+        this.isTransactional = getBoolParameter(table.getParameters(), "transactional");
+        this.isReplicated = getBoolParameter(table.getParameters(), "replicated");
     }
 
     public Table getTable() {
@@ -42,6 +45,10 @@ public class TableInfo {
 
     public boolean nonTransactional() {
         return !isTransactional;
+    }
+
+    public boolean isReplicated() {
+        return isReplicated;
     }
 
     @Override
