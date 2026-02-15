@@ -75,11 +75,11 @@ public class HiveSync {
             if (!bothTables.isEmpty()) {
                 syncPartitions(srcHms, dstHms, srcTables, dstTables, bothTables);
             }
-            // create new tables from src in dst
+            // create new (and remove old) tables from src in dst
             if (srcTables.size() != bothTables.size()) {
                 syncTables(srcHms, dstHms, srcTables, bothTables);
             }
-            // create new tables from dst in src
+            // create new (and remove old) tables from dst in src
             if (dstTables.size() != bothTables.size()) {
                 syncTables(dstHms, srcHms, dstTables, bothTables);
             }

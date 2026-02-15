@@ -93,10 +93,7 @@ public abstract class Commands {
                 try (HMSClient hmsClient = hms.createClient()) {
                     List<PartitionInfo> pList = hmsClient.getPartitionsByNames(dbName, tableName, batch)
                             .stream()
-                            .map(p ->
-                                            new PartitionInfo(FileUtils.makePartName(partColumns, p.getValues()), p)
-                                    //p.getCreateTime(), p.getValues(), p.getSd().getLocation(), p.getParameters())
-                            )
+                            .map(p -> new PartitionInfo(FileUtils.makePartName(partColumns, p.getValues()), p))
                             .collect(Collectors.toList());
                     synchronized (al) {
                         al.addAll(pList);
@@ -115,12 +112,12 @@ public abstract class Commands {
         }
         LOG.trace("Creating partitions: {}.{}", table.getDb(), table.getName());
         int batchSize = 1000;
-        ExecutorService pool = Executors.newFixedThreadPool(6);
+        ExecutorService pool = Executors.newFixedThreadPool(8);
         for (int i = 0; i < parts.size(); i += batchSize) {
             List<PartitionInfo> batch = parts.subList(i, Math.min(i + batchSize, parts.size()));
             pool.submit(() -> {
                 List<Partition> list = batch.stream()
-                        .map(p -> createPartition(table.getTable(), p.getValues(), p.getLocation()))
+                        .map(p -> makePartition(table.getTable(), p.getValues(), p.getLocation()))
                         .collect(Collectors.toList());
                 try (HMSClient hmsClient = hms.createClient()) {
                     hmsClient.add_partitions(list, true, false);
@@ -137,7 +134,7 @@ public abstract class Commands {
         }
         LOG.trace("Dropping partitions: {}.{}", table.getDb(), table.getName());
         int batchSize = 1000;
-        ExecutorService pool = Executors.newFixedThreadPool(6);
+        ExecutorService pool = Executors.newFixedThreadPool(8);
         PartitionDropOptions options = new PartitionDropOptions()
                 .deleteData(false)
                 .ifExists(true)
@@ -156,18 +153,21 @@ public abstract class Commands {
         awaitTermination(pool, "Waiting for partitions to be dropped");
     }
 
-    private static Partition createPartition(Table table, List<String> values, String location) {
-        StorageDescriptor sdCopy = table.getSd().deepCopy();
-        sdCopy.setLocation(location);
+    private static Partition makePartition(Table table, List<String> values, String location) {
         Partition partition = new Partition();
         partition.setDbName(table.getDbName());
         partition.setTableName(table.getTableName());
         partition.setValues(values);
-        partition.setSd(sdCopy);
         partition.setLastAccessTime(0);
+
+        StorageDescriptor sdCopy = table.getSd().deepCopy();
+        sdCopy.setLocation(location);
+        partition.setSd(sdCopy);
+
         Map<String, String> params = new HashMap<>();
         params.put("replicated", "true");
         partition.setParameters(params);
+
         return partition;
     }
 }
