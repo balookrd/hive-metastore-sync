@@ -26,10 +26,8 @@ public class HiveSync {
     private final List<String> dbWildcards;
     private final List<String> tblWildcards;
 
-    public HiveSync(String srcMeta, String dstMeta,
-                    boolean metaSasl,
-                    List<String> databases,
-                    List<String> tables) throws Exception {
+    public HiveSync(String srcMeta, String dstMeta, boolean metaSasl,
+                    List<String> databases, List<String> tables) throws Exception {
         srcHms = Tools.createNewMetaConnection(srcMeta, metaSasl);
         dstHms = Tools.createNewMetaConnection(dstMeta, metaSasl);
         this.dbWildcards = databases;
@@ -45,7 +43,6 @@ public class HiveSync {
         for (String database : dbWildcards) {
             dbList2.addAll(Commands.getDatabases(dstHms, database));
         }
-
         ExecutorService pool = Executors.newFixedThreadPool(8);
         for (String db : dbList1) {
             LOG.info("Syncing database: {}", db);

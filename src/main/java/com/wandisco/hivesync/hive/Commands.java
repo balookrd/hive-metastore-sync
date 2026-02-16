@@ -23,10 +23,10 @@ public abstract class Commands {
 
     private static final Logger LOG = LogManager.getLogger(HiveSync.class);
 
-    private static String dryRunFile = null;
+    private static boolean dryRun = false;
 
-    public static void setDryRunFile(String name) {
-        dryRunFile = name;
+    public static void setDryRun(boolean isDryRun) {
+        dryRun = isDryRun;
     }
 
     public static List<String> getDatabases(HMSClient hms, String pattern) throws TException {
@@ -40,7 +40,11 @@ public abstract class Commands {
         LOG.trace("Creating database: {}", db.getName());
         Database dbCopy = db.deepCopy();
         dbCopy.unsetParameters();
-        hms.createDatabase(dbCopy);
+        if (dryRun) {
+            LOG.info("Creating database: {}", db.getName());
+        } else {
+            hms.createDatabase(dbCopy);
+        }
     }
 
     public static ArrayList<TableInfo> getTables(HMSClient hms, String dbName) throws TException {
@@ -64,7 +68,11 @@ public abstract class Commands {
         // params.put("external.table.purge", "FALSE");
         params.put("replicated", "true");
         tableCopy.setParameters(params);
-        hms.createTable(tableCopy);
+        if (dryRun) {
+            LOG.info("Creating table: {}.{}", table.getDb(), table.getName());
+        } else {
+            hms.createTable(tableCopy);
+        }
         if (table.isPartitioned()) {
             createPartitions(hms, table, table.getPartitions());
         }
@@ -72,7 +80,11 @@ public abstract class Commands {
 
     public static void dropTable(HMSClient hms, TableInfo table) throws TException {
         LOG.trace("Dropping table: {}.{}", table.getDb(), table.getName());
-        hms.dropTable(table.getDb(), table.getName(), false, true);
+        if (dryRun) {
+            LOG.info("Dropping table: {}.{}", table.getDb(), table.getName());
+        } else {
+            hms.dropTable(table.getDb(), table.getName(), false, true);
+        }
     }
 
     private static List<PartitionInfo> queryPartitions(HMSClient hms, String dbName, String tableName) throws TException {
@@ -120,7 +132,12 @@ public abstract class Commands {
                         .map(p -> makePartition(table.getTable(), p.getValues(), p.getLocation()))
                         .collect(Collectors.toList());
                 try (HMSClient hmsClient = hms.createClient()) {
-                    hmsClient.add_partitions(list, true, false);
+                    if (dryRun) {
+                        LOG.info("Creating partitions: {}.{} {}", table.getDb(), table.getName(),
+                                batch.stream().map(PartitionInfo::getName).collect(Collectors.joining(",")));
+                    } else {
+                        hmsClient.add_partitions(list, true, false);
+                    }
                 }
                 return null;
             });
@@ -143,8 +160,13 @@ public abstract class Commands {
             List<PartitionInfo> batch = parts.subList(i, Math.min(i + batchSize, parts.size()));
             pool.submit(() -> {
                 try (HMSClient hmsClient = hms.createClient()) {
-                    for (PartitionInfo p : batch) {
-                        hmsClient.dropPartition(table.getDb(), table.getName(), p.getValues(), options);
+                    if (dryRun) {
+                        LOG.info("Dropping partitions: {}.{} {}", table.getDb(), table.getName(),
+                                batch.stream().map(PartitionInfo::getName).collect(Collectors.joining(",")));
+                    } else {
+                        for (PartitionInfo p : batch) {
+                            hmsClient.dropPartition(table.getDb(), table.getName(), p.getValues(), options);
+                        }
                     }
                 }
                 return null;

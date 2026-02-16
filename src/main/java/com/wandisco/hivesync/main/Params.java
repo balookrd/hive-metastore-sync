@@ -25,9 +25,8 @@ public class Params {
     private String dstMeta;
 
     @Parameter(names = {"--meta-sasl"},
-            description = "Set 'hive.metastore.sasl.enabled = true' (default false)",
-            required = false)
-    private Boolean metaSasl = false;
+            description = "Set 'hive.metastore.sasl.enabled = true' (default false)")
+    private Boolean metaSasl;
 
     @Parameter(names = {"--database"},
             description = "Database(s), comma-separated list with wildcards")
@@ -38,8 +37,8 @@ public class Params {
     private List<String> tables = new ArrayList<>(Collections.singletonList("*"));
 
     @Parameter(names = {"--dry-run"},
-            description = "Don't run, but output commands to the specified file")
-    private String dryRunFile = null;
+            description = "Don't run, but output commands to log")
+    private Boolean dryRun;
 
     public Boolean getHelp() {
         return help;
@@ -65,7 +64,7 @@ public class Params {
         return tables;
     }
 
-    public String getDryRunFile() {
-        return dryRunFile;
+    public Boolean isDryRun() {
+        return dryRun != null && dryRun;
     }
 }
