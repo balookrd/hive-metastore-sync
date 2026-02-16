@@ -13,8 +13,7 @@ Maven will produce two results:
 2. zip archive ```target/hive-metastore-sync-<version>.zip```
 
 ## How to test?
-* Create two single-node clusters, expected host names: box1.lxc & box2.lxc
-* Install hadoop and hive on each one
+* Need installed docker and direct access to internet
 * Run the tests:
 
 ```
@@ -26,22 +25,6 @@ Test suite starts/restarts hadoop and hive every time you run it. You can cut th
 ```
 mvn test -DskipStart=true
 ````
-
-To simplify the testing process, there is a vagrant-lxc template which could be used to create box1 and box2.
-You have to install lxc, vagrant (https://www.vagrantup.com) and vagrant-lxc plugin (https://github.com/fgrehm/vagrant-lxc) to use it. Then run the following commands:
-
-```
-cd vagrant/lxc
-vagrant up
-```
-
-This command creates and runs two containers: box1.lxc and box2.lxc, both provisioned with hadoop and hive.
-
-To remove created containers use ```destroy```:
-
-```
-vagrant destroy
-```
 
 ## Running hive-metastore-sync
 
@@ -126,11 +109,11 @@ beeline> !connect jdbc:hive2://hiveserver.dst.com:10000/default;principal=hive/d
 beeline> show tables;
 ```
 #### Start sync
-* Use ```--dry-run``` to generate output.txt with hive commands:
+* Use ```--dry-run``` to generate log with hive commands:
 ```
-<install-dir>/bin/hivesync --dry-run output.txt --dst-url "jdbc:hive2://hiveserver.dst.com:10000/default;principal=hive/hiveserver.dst.com@DST.COM" --src-url "jdbc:hive2://hiveserver.src.com:10000/default;principal=hive/hiveserver.src.com@SRC.COM"
+<install-dir>/bin/hivesync --dry-run --src-meta "thrift://hms.src.com:9083" --dst-meta "thrift://hms.dst.com:9083"
 ```
-* Review generated ```output.txt``` file and run the same command again, but without ```--dry-run``` parameter to start syncing.
+* Review output log and run the same command again, but without ```--dry-run``` parameter to start syncing.
 
 #### Запуск локальных баз для отладки
 
