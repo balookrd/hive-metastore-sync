@@ -16,8 +16,6 @@ public abstract class AbstractTest {
     protected HMSClient hms1;
     protected HMSClient hms2;
 
-    protected String url1;
-    protected String url2;
     protected String meta1;
     protected String meta2;
 
@@ -27,8 +25,6 @@ public abstract class AbstractTest {
         con2 = AbstractSuite.getCon2();
         hms1 = AbstractSuite.getHms1();
         hms2 = AbstractSuite.getHms2();
-        url1 = AbstractSuite.getUrl1();
-        url2 = AbstractSuite.getUrl2();
         meta1 = AbstractSuite.getMeta1();
         meta2 = AbstractSuite.getMeta2();
     }

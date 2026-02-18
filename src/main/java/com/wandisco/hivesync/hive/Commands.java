@@ -1,7 +1,6 @@
 package com.wandisco.hivesync.hive;
 
 import com.wandisco.hivesync.common.Tools;
-import com.wandisco.hivesync.main.HiveSync;
 import org.apache.hadoop.hive.metastore.PartitionDropOptions;
 import org.apache.hadoop.hive.metastore.api.*;
 import org.apache.hadoop.hive.metastore.utils.FileUtils;
@@ -21,7 +20,7 @@ import static com.wandisco.hivesync.common.Tools.awaitTermination;
 
 public abstract class Commands {
 
-    private static final Logger LOG = LogManager.getLogger(HiveSync.class);
+    private static final Logger LOG = LogManager.getLogger(Commands.class);
 
     private static boolean dryRun = false;
 

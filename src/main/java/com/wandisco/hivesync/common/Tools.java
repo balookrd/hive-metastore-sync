@@ -1,7 +1,6 @@
 package com.wandisco.hivesync.common;
 
 import com.wandisco.hivesync.hive.HMSClient;
-import com.wandisco.hivesync.main.HiveSync;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.logging.log4j.LogManager;
@@ -16,7 +15,7 @@ import java.util.concurrent.TimeUnit;
 
 public class Tools {
 
-    private static final Logger LOG = LogManager.getLogger(HiveSync.class);
+    private static final Logger LOG = LogManager.getLogger(Tools.class);
 
     // The main function that checks if
     // two given strings match. The first string

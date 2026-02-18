@@ -28,8 +28,10 @@ public class AbstractSuite {
     @BeforeSuite
     public void setupSuite(String hive1, String meta1, String hive2, String meta2) throws Exception {
         DockerComposeManager.start("src/test/resources/hive1.yaml");
+        DockerComposeManager.start("src/test/resources/hive2.yaml");
+
         System.err.print("Connecting to hive1 ");
-        for (int i = 0; i < 30; i++) {
+        for (int i = 0; i < 60 * 5; i++) {
             try {
                 con1 = Tools.createNewHiveConnection(hive1);
                 break;
@@ -38,11 +40,13 @@ public class AbstractSuite {
                 Thread.sleep(1_000);
             }
         }
+        if (con1 == null) {
+            throw new Exception("Could not connect to hive1");
+        }
         System.err.println();
 
-        DockerComposeManager.start("src/test/resources/hive2.yaml");
         System.err.print("Connecting to hive2 ");
-        for (int i = 0; i < 30; i++) {
+        for (int i = 0; i < 60 * 5; i++) {
             try {
                 con2 = Tools.createNewHiveConnection(hive2);
                 break;
@@ -50,6 +54,9 @@ public class AbstractSuite {
                 System.err.print(".");
                 Thread.sleep(1_000);
             }
+        }
+        if (con2 == null) {
+            throw new Exception("Could not connect to hive2");
         }
         System.err.println();
 

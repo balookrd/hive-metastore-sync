@@ -39,6 +39,10 @@ public class CommandsTest extends AbstractTest {
         Assert.assertTrue(result.contains("db1"));
         Assert.assertTrue(result.contains("db2"));
         Assert.assertTrue(result.contains("db3"));
+        result = Commands.getDatabases(hms2, "db*");
+        Assert.assertEquals(result.size(), 2);
+        Assert.assertTrue(result.contains("db1"));
+        Assert.assertTrue(result.contains("db3"));
     }
 
     @Test
@@ -47,10 +51,10 @@ public class CommandsTest extends AbstractTest {
         Assert.assertEquals(result.size(), 1);
         Assert.assertEquals(result.get(0).getDb(), "db1");
         Assert.assertEquals(result.get(0).getName(), "table1");
-        result = Commands.getTables(hms1, "db2");
+        result = Commands.getTables(hms2, "db1");
         Assert.assertEquals(result.size(), 1);
-        Assert.assertEquals(result.get(0).getDb(), "db2");
-        Assert.assertEquals(result.get(0).getName(), "table2");
+        Assert.assertEquals(result.get(0).getDb(), "db1");
+        Assert.assertEquals(result.get(0).getName(), "table1");
     }
 
     @AfterClass
