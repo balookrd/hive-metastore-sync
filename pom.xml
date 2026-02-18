@@ -22,7 +22,7 @@
                     <target>1.8</target>
                     <testSource>1.8</testSource>
                     <testTarget>1.8</testTarget>
-                    <compilerArgument>-Xlint:all</compilerArgument>
+                    <compilerArgument>-Xlint:all,-processing</compilerArgument>
                     <showWarnings>true</showWarnings>
                     <showDeprecation>true</showDeprecation>
                 </configuration>
@@ -40,6 +40,7 @@
                 </executions>
                 <configuration>
                     <createDependencyReducedPom>false</createDependencyReducedPom>
+                    <shadedArtifactAttached>false</shadedArtifactAttached>
                     <artifactSet>
                         <excludes>
                             <exclude>org.testng:*</exclude>
@@ -56,19 +57,34 @@
                                 <exclude>META-INF/*.SF</exclude>
                                 <exclude>META-INF/*.DSA</exclude>
                                 <exclude>META-INF/*.RSA</exclude>
+                                <exclude>META-INF/maven/**</exclude>
+                                <exclude>META-INF/DEPENDENCIES</exclude>
                                 <exclude>META-INF/LICENSE*</exclude>
                                 <exclude>META-INF/NOTICE*</exclude>
+                                <exclude>META-INF/ASL2.0</exclude>
+                                <exclude>META-INF/README.txt</exclude>
+                                <exclude>META-INF/jersey-module-version</exclude>
                             </excludes>
                         </filter>
                     </filters>
                     <transformers>
                         <transformer
+                                implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                        <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                            <resource>META-INF/spring.handlers</resource>
+                        </transformer>
+                        <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                            <resource>META-INF/spring.schemas</resource>
+                        </transformer>
+                        <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                            <resource>plugin.xml</resource>
+                        </transformer>
+                        <transformer
                                 implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                             <mainClass>com.wandisco.hivesync.Main</mainClass>
                         </transformer>
-                        <transformer
-                                implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
                     </transformers>
+                    <minimizeJar>false</minimizeJar>
                 </configuration>
             </plugin>
             <plugin>
@@ -93,6 +109,16 @@
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-common</artifactId>
             <version>${hadoop.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-log4j12</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>log4j</groupId>
+                    <artifactId>log4j</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.apache.hive</groupId>
@@ -103,6 +129,14 @@
                     <groupId>org.apache.hadoop</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-log4j12</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>log4j</groupId>
+                    <artifactId>log4j</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
 
@@ -111,6 +145,24 @@
             <artifactId>hive-jdbc</artifactId>
             <version>${hive.version}</version>
             <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.hadoop</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-log4j12</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>log4j</groupId>
+                    <artifactId>log4j</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.logging.log4j</groupId>
+                    <artifactId>log4j-web</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.testng</groupId>
@@ -119,4 +171,21 @@
             <scope>provided</scope>
         </dependency>
     </dependencies>
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-bom</artifactId>
+                <version>2.8.2</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+    <repositories>
+        <repository>
+            <id>central</id>
+            <url>https://repo.maven.apache.org/maven2</url> <!-- Correct URL for Maven Central -->
+        </repository>
+    </repositories>
 </project>

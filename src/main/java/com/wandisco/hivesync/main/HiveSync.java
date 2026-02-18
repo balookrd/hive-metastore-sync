@@ -6,6 +6,7 @@ import com.wandisco.hivesync.hive.HMSClient;
 import com.wandisco.hivesync.hive.PartitionInfo;
 import com.wandisco.hivesync.hive.TableInfo;
 import org.apache.hadoop.hive.metastore.api.Database;
+import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.thrift.TException;
@@ -27,14 +28,14 @@ public class HiveSync {
     private final List<String> tblWildcards;
 
     public HiveSync(String srcMeta, String dstMeta, boolean metaSasl,
-                    List<String> databases, List<String> tables) throws Exception {
+                    List<String> databases, List<String> tables) throws MetaException {
         srcHms = Tools.createNewMetaConnection(srcMeta, metaSasl);
         dstHms = Tools.createNewMetaConnection(dstMeta, metaSasl);
         this.dbWildcards = databases;
         this.tblWildcards = tables;
     }
 
-    public void execute() throws Exception {
+    public void execute() throws TException {
         HashSet<String> dbList1 = new HashSet<>();
         for (String database : dbWildcards) {
             dbList1.addAll(Commands.getDatabases(srcHms, database));
@@ -55,7 +56,7 @@ public class HiveSync {
         awaitTermination(pool, "Waiting for syncing databases");
     }
 
-    private void createDatabase(HMSClient hms, Database db) throws Exception {
+    private void createDatabase(HMSClient hms, Database db) throws TException {
         LOG.info("Create database: {}", db.getName());
         Commands.createDatabase(hms, db);
     }
