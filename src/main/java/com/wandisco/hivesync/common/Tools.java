@@ -75,11 +75,16 @@ public class Tools {
             while (!pool.awaitTermination(1, TimeUnit.SECONDS)) {
                 LOG.trace(text);
             }
-        } catch (InterruptedException ignored) {
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            LOG.warn("Interrupted while waiting for executor shutdown: {}", text, e);
         }
     }
 
     public static boolean getBoolParameter(Map<String, String> params, String key) {
+        if (params == null) {
+            return false;
+        }
         String val = params.get(key);
         return val != null && val.equalsIgnoreCase("true");
     }
